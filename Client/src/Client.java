@@ -32,7 +32,13 @@ public class Client extends JFrame{
         String commandIndex = "INDEX";
         String commandGet = "GET ";
         String commandSend = "SEND ";
-
+        final int[] bytesRead = new int[1];
+        final int[] current = {0};
+        final FileOutputStream[] fos = {null};
+        final BufferedOutputStream[] bos = {null};
+        final FileInputStream[] fis = {null};
+        final BufferedInputStream[] bis = {null};
+        final OutputStream[] os = {null};
         final Socket[] connectionSocket = new Socket[1];
         final PrintWriter[] out = new PrintWriter[1];
         final BufferedReader[] in = new BufferedReader[1];
@@ -138,22 +144,29 @@ public class Client extends JFrame{
                     JOptionPane.showMessageDialog(null, "Please Select a file!");
                 } else {
                     try {
-                        connectionSocket[0] = new Socket(ip,parseInt(t1.getText()));
+                        connectionSocket[0] = new Socket(ip,4000);
                         in[0] = new BufferedReader(new InputStreamReader(connectionSocket[0].getInputStream()));
                         out[0] = new PrintWriter(connectionSocket[0].getOutputStream());
                         out[0].println(commandSend);
-                        BufferedReader fileSend = new BufferedReader(new FileReader(sendFile[0]));
                         out[0].println(sendFile[0].getName());
-                        System.out.println(fileSend);
-                        while (true) {
-                            String line = fileSend.readLine();
-                            if (line == null)
-                                break;
-                            out[0].println(line);
-                            System.out.println(line);
-                        }
                         out[0].flush();
+                        //FileInputStream fileInputStream = new FileInputStream(sendFile[0].getAbsolutePath());
+                        //putStream in = new FileInputStream(sendFile[0].getAbsolutePath());
+                        //OutputStream outt = connectionSocket[0].getOutputStream();
+                        File myFile = new File (sendFile[0].getName());
+                        byte [] mybytearray  = new byte [(int)myFile.length()];
+                        fis[0] = new FileInputStream(myFile);
+                        bis[0] = new BufferedInputStream(fis[0]);
+                        bis[0].read(mybytearray,0,mybytearray.length);
+                        os[0] = connectionSocket[0].getOutputStream();
+                        System.out.println("Sending " + sendFile[0].getName() + "(" + mybytearray.length + " bytes)");
+                        os[0].write(mybytearray,0,mybytearray.length);
+                        os[0].flush();
+                        System.out.println("Done.");
+
                         out[0].close();
+                        bis[0].close();
+                        os[0].close();
                         if (out[0].checkError())
                             System.out.println("Error");
                     } catch (IOException ex) {
@@ -223,20 +236,27 @@ public class Client extends JFrame{
                     System.out.println(path);
                     PrintWriter fileOut;
                     String filename = in[0].readLine();
+                    File downoladedfile = new File(path,filename);
 
-                    File downoladFile = new File(path,filename);
-                    fileOut = new PrintWriter(new FileWriter(downoladFile));
-                    while (true) {
-                        String line = in[0].readLine();
-                        if (line == null)
-                            break;
-                        fileOut.println(line);
-                        System.out.println(line);
-                    }
-                    if (fileOut.checkError()) {
-                        System.out.println("Some error occurred while writing the file.");
-                        System.out.println("Output file might be empty or incomplete.");
-                    }
+                    byte [] mybytearray  = new byte [1048576];
+                    InputStream is = connectionSocket[0].getInputStream();
+                    fos[0] = new FileOutputStream(downoladedfile);
+                    bos[0] = new BufferedOutputStream(fos[0]);
+                    bytesRead[0] = is.read(mybytearray,0,mybytearray.length);
+                    current[0] = bytesRead[0];
+
+                    do {
+                        bytesRead[0] =
+                                is.read(mybytearray, current[0], (mybytearray.length- current[0]));
+                        if(bytesRead[0] >= 0) current[0] += bytesRead[0];
+                    } while(bytesRead[0] > -1);
+
+                    bos[0].write(mybytearray, 0 , current[0]);
+                    bos[0].flush();
+                    System.out.println("File " + downoladedfile
+                            + " downloaded (" + current[0] + " bytes read)");
+                     fos[0].close();
+                    bos[0].close();
                     out[0].close();
                 } catch (IOException ioException) {
                     ioException.printStackTrace();
@@ -244,6 +264,7 @@ public class Client extends JFrame{
 
             }
         });
+
 
         frm.add(tt);
         frm.add(t);
@@ -260,5 +281,6 @@ public class Client extends JFrame{
         frm.add(p);
         frm.setVisible(true);
     }
+
 }
 
